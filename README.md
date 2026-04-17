@@ -1,72 +1,22 @@
 # AI Document Question Answering System
 
-This project is a local Retrieval-Augmented Generation application that reads content from a Google Doc and answers user questions strictly from that document.
+This is a Python-based RAG chatbot that reads a Google Doc and answers questions from that document only.
 
-The system is designed as a simple proof of concept for document-based question answering. It does not use paid APIs for answer generation. The language model runs locally through Ollama.
-
-## Goal
-
-The goal is to build an interactive chatbot that can:
-
-- Read document content from Google Docs
-- Split the document into smaller text chunks
-- Convert the chunks into embeddings
-- Store and search embeddings using FAISS
-- Send only the relevant document context to a local LLM
-- Answer only from the document
-- Return `Not found in document` when the answer is not available in the document
-
-## Current Implementation
-
-The current version uses a public Google Docs export URL.
-
-The Google Doc is fetched using:
-
-```python
-https://docs.google.com/document/d/<DOC_ID>/export?format=txt
-```
-
-This approach is simple and works well for a proof of concept because it does not require Google Cloud setup, OAuth, service accounts, or credential management.
-
-Current document access flow:
-
-1. The Google Doc is made publicly readable.
-2. The script downloads the document as plain text.
-3. The text is processed locally.
-4. The chatbot answers questions using only the retrieved document context.
-
-## Architecture
+If the answer is not available in the document, the chatbot returns:
 
 ```text
-Google Doc
-   |
-   v
-Fetch document text using public export URL
-   |
-   v
-Split text into chunks
-   |
-   v
-Create embeddings using sentence-transformers
-   |
-   v
-Store embeddings in FAISS
-   |
-   v
-User asks a question
-   |
-   v
-Convert question into embedding
-   |
-   v
-Retrieve relevant chunks from FAISS
-   |
-   v
-Send context and question to Ollama Phi3
-   |
-   v
-Return answer from document context only
+Not found in document
 ```
+
+## What It Does
+
+- Reads text from a Google Doc
+- Splits the text into smaller chunks
+- Creates embeddings using `sentence-transformers`
+- Stores embeddings in FAISS
+- Finds the most relevant chunks for a user question
+- Sends the question and document context to a local Ollama model
+- Answers only from the document context
 
 ## Tech Stack
 
@@ -75,135 +25,48 @@ Return answer from document context only
 - sentence-transformers
 - FAISS
 - Ollama
-- Phi3 local model
+- Phi3
 
-## Why Ollama
+## Flow
 
-Ollama is used because it allows the language model to run locally on the machine.
-
-Benefits:
-
-- No paid LLM API is required
-- No document context is sent to an external LLM provider
-- Works well for local development and proof of concept work
-- Easy to switch between local models
-- Simple HTTP API available at `http://localhost:11434`
-
-In this project, the code communicates with Ollama through its local HTTP API instead of depending on the `ollama` command being available in the terminal PATH.
-
-## Why Phi3
-
-Phi3 is used as the local LLM for answer generation.
-
-Reasons:
-
-- Lightweight compared to larger models
-- Can run locally through Ollama
-- Good enough for simple question answering tasks
-- Practical for local proof of concept development
-- No cloud LLM cost
-
-The current model name is configured in `main.py`:
-
-```python
-OLLAMA_MODEL = "phi3"
+```text
+Google Doc
+-> Fetch text
+-> Split into chunks
+-> Create embeddings
+-> Store in FAISS
+-> User asks question
+-> Retrieve relevant chunks
+-> Send context to Phi3 using Ollama
+-> Return answer
 ```
 
-## Why sentence-transformers
+## Google Doc Reading
 
-The project uses `all-MiniLM-L6-v2` from sentence-transformers for embeddings.
+There are two ways to read the Google Doc.
 
-Reasons:
+### Option 1: Public Google Doc Link
 
-- Lightweight and fast
-- Good semantic search quality for small and medium documents
-- Runs locally
-- Easy to integrate with FAISS
+This project currently uses a public Google Doc export URL:
 
-The current embedding model is configured in `main.py`:
-
-```python
-EMBEDDING_MODEL = "all-MiniLM-L6-v2"
+```text
+https://docs.google.com/document/d/<DOC_ID>/export?format=txt
 ```
 
-## Why FAISS
+The document must be shared publicly for this method to work.
 
-FAISS is used as the vector search layer.
+### Option 2: Google Docs API
 
-Reasons:
+Google Docs API can also be used to read private documents.
 
-- Fast similarity search
-- Runs locally
-- No database server required
-- Good fit for a simple local RAG proof of concept
-
-The current implementation normalizes embeddings and uses FAISS inner product search. This works like cosine similarity for normalized vectors.
-
-## Google Doc Access Options
-
-There are two practical ways to read Google Docs content.
-
-## Option 1: Public Google Doc Export URL
-
-This is the approach used in the current project.
-
-Pros:
-
-- Simple to implement
-- No Google Cloud setup required
-- No OAuth flow required
-- No service account required
-- Good for proof of concept and demo projects
-
-Cons:
-
-- The document must be publicly readable
-- Not suitable for private or sensitive documents
-- Access control is limited
-
-This approach is useful for the current submission because the focus is on proving the RAG flow end to end.
-
-## Option 2: Google Docs API
-
-For production or private documents, the better approach is to use the official Google Docs API.
-
-This requires:
+This needs:
 
 - Google Cloud Project
 - Google Docs API enabled
-- OAuth client or service account
-- Credential handling
-- Access permissions for the target document
+- OAuth or service account credentials
+- Access permission for the document
 
-Pros:
-
-- Can read private Google Docs
-- Better security
-- Better access control
-- More suitable for production use
-- Can integrate with organization-level document access policies
-
-Cons:
-
-- More setup required
-- Requires Google Cloud configuration
-- Requires secure credential management
-
-Recommended future direction:
-
-Use the Google Docs API when private document access is required. The current public export URL can be replaced with a secure Google Docs API reader without changing the rest of the RAG pipeline.
-
-## Prompting Rule
-
-The LLM is instructed to answer only from the retrieved document context.
-
-If the answer is not present in the context, it must return:
-
-```text
-Not found in document
-```
-
-This rule is enforced in the prompt before sending the question to Phi3.
+The rest of the RAG flow remains the same after the document text is fetched.
 
 ## Setup
 
@@ -221,7 +84,7 @@ Install dependencies:
 .venv312\Scripts\python.exe -m pip install -r requirements.txt
 ```
 
-Install Ollama from:
+Install Ollama:
 
 ```text
 https://ollama.com
@@ -247,24 +110,13 @@ Ask a question:
 What is AWS Lambda?
 ```
 
-Exit the chatbot:
+Exit:
 
 ```text
 exit
 ```
 
-## Example Document Content
-
-The current Google Doc contains AWS-related information such as:
-
-- AWS Lambda
-- IAM Role
-- Amazon S3
-- Amazon EC2
-- Auto Scaling
-- CloudWatch
-
-Example supported questions:
+## Example Questions
 
 ```text
 What is AWS Lambda?
@@ -282,37 +134,27 @@ What is Amazon S3 used for?
 What is CloudWatch used for?
 ```
 
-For a question outside the document, such as:
+If the question is outside the document:
 
 ```text
 What is the capital of France?
 ```
 
-Expected response:
+Expected answer:
 
 ```text
 Not found in document
 ```
 
-## Current Limitations
+## Files
 
-- Current document access requires a public Google Doc
-- No chat history is stored
-- FAISS index is rebuilt every time the script starts
-- No web UI is included yet
-- No source citations are shown in the answer
+- `main.py`: Main RAG chatbot script
+- `requirements.txt`: Python dependencies
+- `.gitignore`: Files and folders ignored by Git
 
-## Recommended Next Steps
+## Notes
 
-1. Add Google Docs API support for private documents.
-2. Store FAISS index locally to avoid rebuilding on every run.
-3. Add source chunk display with each answer.
-4. Add a simple web UI using Streamlit or FastAPI.
-5. Add support for multiple documents.
-6. Add better logging and test cases.
-
-## Summary
-
-This project demonstrates a working local RAG pipeline using Google Docs, sentence-transformers, FAISS, Ollama, and Phi3.
-
-The current implementation is intentionally simple and practical. It proves the full flow from document ingestion to retrieval to local LLM-based answering. For production use, the main upgrade should be replacing the public Google Doc export link with the Google Docs API for secure private document access.
+- The current version uses a public Google Doc link.
+- The local LLM runs through Ollama.
+- FAISS index is created when the script starts.
+- No paid API is required.
