@@ -1,5 +1,9 @@
+import logging
 import os
 import sys
+import warnings
+from contextlib import redirect_stderr, redirect_stdout
+from io import StringIO
 
 import faiss
 import numpy as np
@@ -84,7 +88,17 @@ def chunk_text(text, chunk_words=CHUNK_WORDS, overlap=CHUNK_OVERLAP):
 
 def load_embedding_model():
     print("Loading embedding model...")
-    model = SentenceTransformer(EMBEDDING_MODEL)
+    previous_disable_level = logging.root.manager.disable
+    logging.disable(logging.WARNING)
+
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            with redirect_stdout(StringIO()), redirect_stderr(StringIO()):
+                model = SentenceTransformer(EMBEDDING_MODEL)
+    finally:
+        logging.disable(previous_disable_level)
+
     print("Model loaded")
     return model
 
